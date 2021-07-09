@@ -36,8 +36,6 @@ single_lethal_genes_ind_ecoli = find(grRatio_single_ecoli < 0.05 ) ;
 result_array_ecoli = zeros(length(single_lethal_genes_ind_ecoli),1) ; % array noting which KO grows with WT 
 result_array_yeast = zeros(length(single_lethal_genes_ind_yeast),1) ; % array noting which KO grows with WT 
 
-%auxotropic_pool_ecoli = cell(length(single_lethal_genes_ind_ecoli),3) ; % array to store succesful auxotrophic strains
-%auxotropic_pool_yeast = cell(length(single_lethal_genes_ind_yeast),3) ; % array to store succesful auxotrophic strains
 
 result_array_Gr_KO_ecoli = zeros(length(single_lethal_genes_ind_ecoli),1) ; % ratio of growth rate of KO to WT 
 result_array_Gr_KO_yeast = zeros(length(single_lethal_genes_ind_yeast),1) ; % ratio of growth rate of KO to WT 
@@ -75,14 +73,12 @@ parfor i = 1:length(single_lethal_genes_ind_ecoli)
     ko_gene_ecoli = strcat(ecoli_WT.genes(targ_gene_ind) , {'_model_1'}) ; 
   
     ko_comm_model = deleteModelGenes(comm_models{1}, ko_gene_ecoli) ;
-    %ko_comm_model = changeRxnBounds(ko_comm_model,'EX_o2_e(u)',-0,'l'); % Set maximum oxygen uptake
-    %comm_models{1} = changeRxnBounds(comm_models{1},'EX_o2_e(u)',-0,'l'); % Set maximum oxygen uptake
+   
     
     try
     [sol_KO, result_KO] = SteadyCom(ko_comm_model) ; % Applying Steady Come to WT community model
     
     if result_KO.vBM(1) > 0 
-        %auxotropic_pool_ecoli{i} = {comm_models{1}, model_1, result_KO} ;
         result_array_ecoli(i) = 1 ;         
     end
     GR = result_KO.vBM ; Ex = sum(result_KO.Ex) ;
@@ -138,9 +134,6 @@ saveas(gcf, "glucose_ecoli_KO_Abundance.png");
 % Simulating models for KO Yeast : 
 parfor i = 1:length(single_lethal_genes_ind_yeast) 
     
-%     model_1 = deleteModelGenes(yeast_WT, yeast_WT.genes(single_lethal_genes_ind_yeast(i)));
-%     all_models = {model_1 , ecoli_WT} ;
-%     [comm_models,pairedModelInfo] = create_community(all_models) ; % Creating community model for WT
     
     targ_gene_ind = single_lethal_genes_ind_yeast(i) ;
 
@@ -148,15 +141,13 @@ parfor i = 1:length(single_lethal_genes_ind_yeast)
   
     ko_comm_model = deleteModelGenes(comm_models{1}, ko_gene_yeast) ;
     
-    %ko_comm_model = changeRxnBounds(ko_comm_model,'EX_o2_e(u)',-0,'l'); % Set maximum oxygen uptake
-    %comm_models{1} = changeRxnBounds(comm_models{1},'EX_o2_e(u)',-0,'l'); % Set maximum oxygen uptake
+   
    
     try
     [sol_KO, result_KO] = SteadyCom(ko_comm_model) ; % Applying Steady Come to WT community model
 
     
-    if result_KO.vBM(1) > 0 
-        %auxotropic_pool_yeast{i} = {comm_models{1}, model_1, result_KO} ;
+    if result_KO.vBM(1) > 0
         result_array_yeast(i) = 1 ;         
     end
     GR = result_KO.vBM ; Ex = sum(result_KO.Ex) ;
@@ -213,7 +204,6 @@ saveas(gcf, "glucose_yeast_KO_Abundance.png");
 
 
 
-% Testing succesfull KOs
 
 
 
@@ -239,17 +229,12 @@ result_array_gr_KO_comm = zeros(num_succ_KO_ecoli,num_succ_KO_yeast) ; % GRmax o
 
 result_array_Ex_KO_ecoli_KO_yeast = zeros(num_succ_KO_ecoli,num_succ_KO_yeast) ;  % Export fluxes
 
-%  error_ind_gene_ecoli = [2,8,19,28,44,57,58] ; 
-%  error_ind_gene_yeast = [102,104,103,105,109,110] ; 
-%  
-%  error_ind_gene_ecoli = [86] ; 
-%  error_ind_gene_yeast = [102,105,109,110] ; 
-%  
+   
 error_comb_array = zeros(total_combinations,2) ;
 
 count = 1 ; 
 parfor i = 1:num_succ_KO_ecoli
-    parfor j = 1:num_succ_KO_yeast
+    for j = 1:num_succ_KO_yeast
         disp([i,j])
 %         if ismember(i,error_ind_gene_ecoli) % &&  ismember(j,error_ind_gene_yeast)
 %              ind = ind + 1 ;
@@ -257,25 +242,22 @@ parfor i = 1:num_succ_KO_ecoli
 %         end
         tar_gene_ind_ecoli = target_genes_ind_ecoli(i) ; 
         tar_gene_ind_yeast = target_genes_ind_yeast(j) ; 
-        %ecoli_KO = deleteModelGenes(ecoli_WT, ecoli_WT.genes(tar_gene_ind_ecoli));
-        %yeast_KO = deleteModelGenes(yeast_WT, yeast_WT.genes(tar_gene_ind_yeast));
-        %all_models = {ecoli_KO, yeast_KO} ;
-        %[comm_models,pairedModelInfo] = create_community(all_models) ; % Creating community model
+        
         ko_gene_ecoli = strcat(ecoli_WT.genes(tar_gene_ind_ecoli) , {'_model_1'}) ; 
         ko_gene_yeast = strcat(yeast_WT.genes(tar_gene_ind_yeast) , {'_model_2'}) ; 
         ko_comm_model = deleteModelGenes(comm_models{1}, [ko_gene_ecoli,ko_gene_yeast]) ; 
-        %ko_comm_model = changeRxnBounds(ko_comm_model,'EX_o2_e(u)',-0,'l'); % Set maximum oxygen uptake
         
         %fbasol = optimizeCbModel(ko_comm_model) ;% First Testing for FBA
-       
+        
+        ind = num_succ_KO_yeast*(i-1) + j ;
         try 
         [sol_KO, result_KO] = SteadyCom(ko_comm_model) ; % Applying Steady Come to KO community model
         
          if result_KO.stat == "optimal"
             if result_KO.vBM(1) > 1e-5 && result_KO.vBM(2) > 1e-5
                 %auxotropic_pool_succ_KO{ind} = {comm_models{1}, ecoli_KO, yeast_KO} ;% causes memory issue
-                del_gene_array_KO_ecoli_KO_yeast(count,1) = tar_gene_ind_ecoli ;
-                del_gene_array_KO_ecoli_KO_yeast(count,2) = tar_gene_ind_yeast ;
+                del_gene_array_KO_ecoli_KO_yeast(ind,1) = tar_gene_ind_ecoli ;
+                del_gene_array_KO_ecoli_KO_yeast(ind,2) = tar_gene_ind_yeast ;
             end  
         end
         
@@ -283,22 +265,22 @@ parfor i = 1:num_succ_KO_ecoli
         result_array_gr_KO_yeast_KO_ecoli(i,j) = result_KO.vBM(2)/GR_WT_yeast ; 
         result_array_gr_KO_comm(i,j) = result_KO.GRmax ; 
         result_array_Ex_KO_ecoli_KO_yeast(i,j) = sum(result_KO.Ex) ; 
-        del_all_gene_KO(count,1) = tar_gene_ind_ecoli ; 
-        del_all_gene_KO(count,2) = tar_gene_ind_yeast ; 
+        del_all_gene_KO(ind,1) = tar_gene_ind_ecoli ; 
+        del_all_gene_KO(ind,2) = tar_gene_ind_yeast ; 
          
-        result_abundance_ecoli(count) = result_KO.BM(1)  ; 
-        result_abundance_yeast(count) = result_KO.BM(2)  ; 
+        result_abundance_ecoli(ind) = result_KO.BM(1)  ; 
+        result_abundance_yeast(ind) = result_KO.BM(2)  ; 
         abundance_array(i,j) = result_KO.BM(1)  ;
-        %ind = ind + 1 ;
+        %count = count + 1 ;
         
         catch 
-            error_comb_array(count,1) = tar_gene_ind_ecoli ; 
-            error_comb_array(count,2) = tar_gene_ind_yeast ;
-            del_all_gene_KO(count,1) = tar_gene_ind_ecoli ; 
-            del_all_gene_KO(count,2) = tar_gene_ind_yeast ;            
-            %ind = ind + 1 ; 
+            error_comb_array(ind,1) = tar_gene_ind_ecoli ; 
+            error_comb_array(ind,2) = tar_gene_ind_yeast ;
+            del_all_gene_KO(ind,1) = tar_gene_ind_ecoli ; 
+            del_all_gene_KO(ind,2) = tar_gene_ind_yeast ;            
+            %count = count + 1 ; 
         end
-        count = count + 1 ;
+        
     end
 end
 
@@ -360,8 +342,8 @@ del_gene_yeast_ind = yeast_WT.genes(del_all_gene_KO(:,2)) ;
 
 ind = 1 : total_combinations ; 
 
-% result_abundance_ecoli_trans = result_abundance_ecoli' ; 
-% result_abundance = result_abundance_ecoli_trans(:) ; 
+result_abundance_ecoli_trans = result_abundance_ecoli' ; 
+result_abundance = result_abundance_ecoli_trans(:) ; 
 
 Table_succ = table(ind', del_gene_ecoli_ind, del_gene_yeast_ind, result_ratio_gr_ecoli, result_ratio_gr_yeast, ...
     result_grmax, result_ex_flux, result_abundance_ecoli,'VariableNames',...
