@@ -1,7 +1,7 @@
 close all ;clear; clc; 
 tic
 % Setting up solver
-%changeCobraSolver('gurobi')
+changeCobraSolver('gurobi')
 
 
 % Loading Models
@@ -16,7 +16,7 @@ all_models = {ecoli_WT,yeast_WT} ; % Creating model list for WT
 [comm_models,pairedModelInfo] = create_community(all_models) ; % Creating community model for WT 
 
 %comm_models{1} = changeRxnBounds(comm_models{1},'EX_o2_e(u)',-0,'l'); % Set maximum oxygen uptake
-%comm_models{1} = changeRxnBounds(comm_models{1},'EX_glc__D_e(u)',0,'l'); %To remove glucose from medium
+%comm_models{1} = changeRxnBounds(comm_models{1},'EX_glc__D_e(u)',0,'l'); %To remove maltose from medium
 %comm_models{1} = changeRxnBounds(comm_models{1},'EX_malt_e(u)',-10,'l'); %To change carbon source
 
 [sol_WT, result_WT] = SteadyCom(comm_models{1}) ; % Applying SteadyCom to WT community model 
@@ -54,9 +54,12 @@ result_array_GRmax_KO_yeast = zeros(length(single_lethal_genes_ind_yeast),1) ;
 fault_gene_ind_ecoli = [] ;
 fault_gene_ind_yeast = [] ;
  
+environment = getEnvironment();
 
 % Simulating models for KO Ecoli : 
 parfor i = 1:length(single_lethal_genes_ind_ecoli) 
+    restoreEnvironment(environment);    
+    
     disp(single_lethal_genes_ind_ecoli(i))
     disp(i)
     
@@ -65,15 +68,10 @@ parfor i = 1:length(single_lethal_genes_ind_ecoli)
 %              continue
 %     end
     
-%     model_1 = deleteModelGenes(ecoli_WT, ecoli_WT.genes(single_lethal_genes_ind_ecoli(i)));
-%     all_models = {model_1 , yeast_WT} ;
-%     [comm_models,pairedModelInfo] = create_community(all_models) ; % Creating community model for WT
-    targ_gene_ind = single_lethal_genes_ind_ecoli(i) ; 
 
-    ko_gene_ecoli = strcat(ecoli_WT.genes(targ_gene_ind) , {'_model_1'}) ; 
-  
-    ko_comm_model = deleteModelGenes(comm_models{1}, ko_gene_ecoli) ;
-   
+    targ_gene_ind = single_lethal_genes_ind_ecoli(i) ; 
+    ko_gene_ecoli = strcat(ecoli_WT.genes(targ_gene_ind) , {'_model_1'}) ;  
+    ko_comm_model = deleteModelGenes(comm_models{1}, ko_gene_ecoli) ;   
     
     try
     [sol_KO, result_KO] = SteadyCom(ko_comm_model) ; % Applying Steady Come to WT community model
@@ -101,47 +99,43 @@ ex_flux = result_array_Ex_ecoli(find(result_array_ecoli)) ;
 grmax = result_array_GRmax_KO_ecoli(find(result_array_ecoli)) ;
 genes = ecoli_WT.genes(gene_ind) ; 
 abundance_KO = result_array_abundance_ecoli(find(result_array_ecoli)) ;
-Table_ecoli = table(gene_ind,genes, gr_KO_ecoli'*GR_WT_ecoli, gr_WT_yeast'*GR_WT_yeast,gr_KO_ecoli',grmax,abundance_KO,ex_flux, 'VariableNames',...
+Table_ecoli = table(gene_ind,genes, (gr_KO_ecoli'*GR_WT_ecoli)', (gr_WT_yeast'*GR_WT_yeast)',gr_KO_ecoli,grmax,abundance_KO,ex_flux, 'VariableNames',...
              {'Gene Index','Gene', 'KO Growth rate' , 'WT Growth rate', 'Ratio (gr_KO/gr_WT)','GRmax','KO Abundance','Sum of Ex Flux'}) ;
-writetable(Table_ecoli, 'test_KO_glucose.xls','Sheet',1) ; 
+writetable(Table_ecoli, 'test_KO_maltose.xls','Sheet',1) ; 
 
 figure
 bar(single_lethal_genes_ind_ecoli, result_array_Gr_KO_ecoli)
 xlabel('Index of Gene in Ecoli deleted') ; 
 ylabel('Growth Rate ratio for Mutant (Ecoli) in Comm Model')
-saveas(gcf, "glucose_ecoli_KO_gr_ratio.png");
+saveas(gcf, "maltose_ecoli_KO_gr_ratio.png");
 
 figure
 bar(single_lethal_genes_ind_ecoli, result_array_Gr_WT_yeast)
 xlabel('Index of Gene in Ecoli deleted') ; 
 ylabel('Growth Rate ratio for WT (Yeast) in Comm Model')
-saveas(gcf, "glucose_yeast_WT_gr_ratio.png");
+saveas(gcf, "maltose_yeast_WT_gr_ratio.png");
 
 
 figure
 bar(single_lethal_genes_ind_ecoli, result_array_Ex_ecoli)
 xlabel('Index of Gene in Ecoli deleted') ; 
 ylabel('Exchange Fluxes (mean)')
-saveas(gcf, "glucose_ecoli_KO_Ex.png");
+saveas(gcf, "maltose_ecoli_KO_Ex.png");
 
 figure
 bar(single_lethal_genes_ind_ecoli, result_array_abundance_ecoli)
 xlabel('Index of Gene in Ecoli deleted') ; 
 ylabel('Ecoli Abundance')
-saveas(gcf, "glucose_ecoli_KO_Abundance.png");
+saveas(gcf, "maltose_ecoli_KO_Abundance.png");
 
 
 % Simulating models for KO Yeast : 
-parfor i = 1:length(single_lethal_genes_ind_yeast) 
-    
+parfor i = 1:length(single_lethal_genes_ind_yeast)
+    restoreEnvironment(environment);   
     
     targ_gene_ind = single_lethal_genes_ind_yeast(i) ;
-
-    ko_gene_yeast = strcat(yeast_WT.genes(targ_gene_ind) , {'_model_2'}) ; 
-  
-    ko_comm_model = deleteModelGenes(comm_models{1}, ko_gene_yeast) ;
-    
-   
+    ko_gene_yeast = strcat(yeast_WT.genes(targ_gene_ind) , {'_model_2'}) ;   
+    ko_comm_model = deleteModelGenes(comm_models{1}, ko_gene_yeast) ; 
    
     try
     [sol_KO, result_KO] = SteadyCom(ko_comm_model) ; % Applying Steady Come to WT community model
@@ -169,43 +163,36 @@ ex_flux = result_array_Ex_yeast(find(result_array_yeast)) ;
 grmax = result_array_GRmax_KO_yeast(find(result_array_yeast)) ;
 genes = yeast_WT.genes(gene_ind) ; 
 abundance_KO = result_array_abundance_yeast(find(result_array_yeast)) ;
-Table_yeast = table(gene_ind,genes, gr_KO_yeast'*GR_WT_yeast, gr_WT_ecoli'*GR_WT_ecoli,gr_KO_yeast',grmax,abundance_KO,ex_flux, 'VariableNames',...
+Table_yeast = table(gene_ind,genes, (gr_KO_yeast'*GR_WT_yeast)', (gr_WT_ecoli'*GR_WT_ecoli)',gr_KO_yeast,grmax,abundance_KO,ex_flux, 'VariableNames',...
              {'Gene Index','Gene', 'KO Growth rate' , 'WT Growth rate', 'Ratio (gr_KO/gr_WT)','GRmax','KO Abundance','Sum of Ex Flux'}) ;
-writetable(Table_yeast, 'test_KO_glucose.xls','Sheet',2) ; 
+writetable(Table_yeast, 'test_KO_maltose.xls','Sheet',2) ; 
 
 figure
 bar(single_lethal_genes_ind_yeast, result_array_Gr_KO_yeast)
 xlabel('Index of Gene in Yeast deleted') ; 
 ylabel('Growth Rate ratio for Mutant (Yeast) in Comm Model')
-saveas(gcf, "glucose_yeast_KO_gr_ratio.png");
+saveas(gcf, "maltose_yeast_KO_gr_ratio.png");
 
 figure
 bar(single_lethal_genes_ind_yeast, result_array_Gr_WT_ecoli)
 xlabel('Index of Gene in yeast deleted') ; 
 ylabel('Growth Rate ratio for WT (Ecoli) in Comm Model')
-saveas(gcf, "glucose_ecoli_WT_gr_ratio.png");
+saveas(gcf, "maltose_ecoli_WT_gr_ratio.png");
 
 figure
 bar(single_lethal_genes_ind_yeast, result_array_Ex_yeast)
 xlabel('Index of Gene in Yeast deleted') ; 
 ylabel('Exchange Fluxes (mean)')
-saveas(gcf, "glucose_yeast_KO_Ex.png");
+saveas(gcf, "maltose_yeast_KO_Ex.png");
 
 figure
 bar(single_lethal_genes_ind_yeast, result_array_abundance_yeast)
 xlabel('Index of Gene in Yeast deleted') ; 
 ylabel('Ecoli Abundance')
-saveas(gcf, "glucose_yeast_KO_Abundance.png");
+saveas(gcf, "maltose_yeast_KO_Abundance.png");
 
 
-
-
-
-
-
-
-
-
+%% Checking performance of Communities with KO-KO combination, successful KOs from previous two simulations
 
 target_genes_ind_ecoli = single_lethal_genes_ind_ecoli(result_array_ecoli == 1) ;  % ind of genes to be KO in WT Ecoli
 target_genes_ind_yeast = single_lethal_genes_ind_yeast(result_array_yeast == 1) ;  % ind of genes to be KO in WT Yeast
@@ -216,8 +203,9 @@ num_succ_KO_yeast = length(target_genes_ind_yeast) ; % Number of KO strains of y
 total_combinations = num_succ_KO_ecoli*num_succ_KO_yeast ;      % total combinations possible
 
 %auxotropic_pool_succ_KO = cell(total_combinations,3) ;          % array to store succesful auxotrophic strains
-del_gene_array_KO_ecoli_KO_yeast = zeros(total_combinations,2) ;  % array to store succesful gene deletions (gene id)
-del_all_gene_KO = ones(total_combinations,2) ;                  % array to store all deleted gene info
+del_gene_array_KO_ecoli_KO_yeast = cell(num_succ_KO_ecoli,num_succ_KO_yeast) ;  % array to store succesful gene deletions (gene id)
+del_all_gene_KO_ecoli = zeros(num_succ_KO_ecoli,num_succ_KO_yeast)  ;                  % array to store all ecoli deleted gene info
+del_all_gene_KO_yeast = zeros(num_succ_KO_ecoli,num_succ_KO_yeast)  ;                  % array to store all yeast deleted gene info
 
 result_abundance_ecoli = zeros(total_combinations,1) ;    % Array to store ecoli abundances
 result_abundance_yeast = zeros(total_combinations,1) ;    % Array to store yeast abundances
@@ -228,12 +216,12 @@ result_array_gr_KO_yeast_KO_ecoli = zeros(num_succ_KO_ecoli,num_succ_KO_yeast) ;
 result_array_gr_KO_comm = zeros(num_succ_KO_ecoli,num_succ_KO_yeast) ; % GRmax of community 
 
 result_array_Ex_KO_ecoli_KO_yeast = zeros(num_succ_KO_ecoli,num_succ_KO_yeast) ;  % Export fluxes
-
    
-error_comb_array = zeros(total_combinations,2) ;
+error_comb_array = cell(num_succ_KO_ecoli,num_succ_KO_yeast)   ;
 
 count = 1 ; 
 parfor i = 1:num_succ_KO_ecoli
+    restoreEnvironment(environment);
     for j = 1:num_succ_KO_yeast
         disp([i,j])
 %         if ismember(i,error_ind_gene_ecoli) % &&  ismember(j,error_ind_gene_yeast)
@@ -247,17 +235,13 @@ parfor i = 1:num_succ_KO_ecoli
         ko_gene_yeast = strcat(yeast_WT.genes(tar_gene_ind_yeast) , {'_model_2'}) ; 
         ko_comm_model = deleteModelGenes(comm_models{1}, [ko_gene_ecoli,ko_gene_yeast]) ; 
         
-        %fbasol = optimizeCbModel(ko_comm_model) ;% First Testing for FBA
-        
-        ind = num_succ_KO_yeast*(i-1) + j ;
         try 
         [sol_KO, result_KO] = SteadyCom(ko_comm_model) ; % Applying Steady Come to KO community model
         
          if result_KO.stat == "optimal"
             if result_KO.vBM(1) > 1e-5 && result_KO.vBM(2) > 1e-5
                 %auxotropic_pool_succ_KO{ind} = {comm_models{1}, ecoli_KO, yeast_KO} ;% causes memory issue
-                del_gene_array_KO_ecoli_KO_yeast(ind,1) = tar_gene_ind_ecoli ;
-                del_gene_array_KO_ecoli_KO_yeast(ind,2) = tar_gene_ind_yeast ;
+                del_gene_array_KO_ecoli_KO_yeast{i,j} = {tar_gene_ind_ecoli,tar_gene_ind_yeast} ;                
             end  
         end
         
@@ -265,20 +249,15 @@ parfor i = 1:num_succ_KO_ecoli
         result_array_gr_KO_yeast_KO_ecoli(i,j) = result_KO.vBM(2)/GR_WT_yeast ; 
         result_array_gr_KO_comm(i,j) = result_KO.GRmax ; 
         result_array_Ex_KO_ecoli_KO_yeast(i,j) = sum(result_KO.Ex) ; 
-        del_all_gene_KO(ind,1) = tar_gene_ind_ecoli ; 
-        del_all_gene_KO(ind,2) = tar_gene_ind_yeast ; 
-         
-        result_abundance_ecoli(ind) = result_KO.BM(1)  ; 
-        result_abundance_yeast(ind) = result_KO.BM(2)  ; 
-        abundance_array(i,j) = result_KO.BM(1)  ;
-        %count = count + 1 ;
+        del_all_gene_KO_ecoli(i,j) = tar_gene_ind_ecoli ;  
+        del_all_gene_KO_yeast(i,j) = tar_gene_ind_yeast  ;       
+        abundance_array(i,j) = result_KO.BM(1)  ;        
         
         catch 
-            error_comb_array(ind,1) = tar_gene_ind_ecoli ; 
-            error_comb_array(ind,2) = tar_gene_ind_yeast ;
-            del_all_gene_KO(ind,1) = tar_gene_ind_ecoli ; 
-            del_all_gene_KO(ind,2) = tar_gene_ind_yeast ;            
-            %count = count + 1 ; 
+            error_comb_array{i,j} = {tar_gene_ind_ecoli,tar_gene_ind_yeast} ;  
+            del_all_gene_KO_ecoli(i,j) = tar_gene_ind_ecoli ;  
+            del_all_gene_KO_yeast(i,j) = tar_gene_ind_yeast  ;
+             
         end
         
     end
@@ -290,7 +269,7 @@ colorbar
 xlabel('Gene Ind of deleted Yeast Gene in target gene array') ; 
 ylabel('Gene Ind of deleted Ecoli Gene in target gene array') ; 
 title([['Growth rate ratio for KO Ecoli w.r.t WT Ecoli'],['In community of KO strains']]) ;
-saveas(gcf, "glucose_comm_gr_ratio_ecoli.png");
+saveas(gcf, "maltose_comm_gr_ratio_ecoli.png");
 
 figure
 imagesc(result_array_gr_KO_yeast_KO_ecoli)
@@ -298,7 +277,7 @@ colorbar
 xlabel('Gene Ind of deleted Yeast Gene in target gene array') ; 
 ylabel('Gene Ind of deleted Ecoli Gene in target gene array') ; 
 title([['Growth rate ratio for KO Yeast w.r.t WT Yeast'],['In community of KO strains']]) ;
-saveas(gcf, "glucose_comm_gr_ratio_yeast.png");
+saveas(gcf, "maltose_comm_gr_ratio_yeast.png");
 
 figure
 imagesc(result_array_gr_KO_comm)
@@ -306,7 +285,7 @@ colorbar
 xlabel('Gene Ind of deleted Yeast Gene in target gene array') ; 
 ylabel('Gene Ind of deleted Ecoli Gene in target gene array') ; 
 title([['Max Growth rate (GRmax)'],['In community of KO strains']]) ;
-saveas(gcf, "glucose_comm_GRmax.png");
+saveas(gcf, "maltose_comm_GRmax.png");
 
         
 figure
@@ -315,7 +294,7 @@ colorbar
 xlabel('Gene Ind of deleted Yeast Gene in target gene array') ; 
 ylabel('Gene Ind of deleted Ecoli Gene in target gene array') ; 
 title([['Total Ex Flux'],['In community of KO strains']]) ;
-saveas(gcf, "glucose_comm_Ex.png");
+saveas(gcf, "maltose_comm_Ex.png");
 
 figure
 imagesc(abundance_array)
@@ -323,7 +302,7 @@ colorbar
 xlabel('Gene Ind of deleted Yeast Gene in target gene array') ; 
 ylabel('Gene Ind of deleted Ecoli Gene in target gene array') ; 
 title([['Abundance (Ecoli)'],['In community of KO strains']]) ;
-saveas(gcf, "glucose_comm_abundance.png");
+saveas(gcf, "maltose_comm_abundance.png");
 
 result_array_gr_KO_ecoli_KO_yeast_trans = result_array_gr_KO_ecoli_KO_yeast' ; 
 result_ratio_gr_ecoli = result_array_gr_KO_ecoli_KO_yeast_trans(:) ; 
@@ -337,19 +316,29 @@ result_grmax = result_array_gr_KO_comm_trans(:) ;
 result_array_Ex_KO_ecoli_KO_yeast_trans = result_array_Ex_KO_ecoli_KO_yeast' ; 
 result_ex_flux = result_array_Ex_KO_ecoli_KO_yeast_trans(:) ; 
 
-del_gene_ecoli_ind = ecoli_WT.genes(del_all_gene_KO(:,1)) ; 
-del_gene_yeast_ind = yeast_WT.genes(del_all_gene_KO(:,2)) ; 
+ 
+
+del_all_gene_KO_ecoli_trans = del_all_gene_KO_ecoli' ; 
+del_all_gene_KO_ecoli = del_all_gene_KO_ecoli_trans(:) ; 
+
+del_all_gene_KO_yeast_trans = del_all_gene_KO_yeast' ; 
+del_all_gene_KO_yeast = del_all_gene_KO_yeast_trans(:) ; 
+
+
+del_gene_ecoli_ind = ecoli_WT.genes(del_all_gene_KO_ecoli) ; 
+del_gene_yeast_ind = yeast_WT.genes(del_all_gene_KO_yeast) ; 
+
 
 ind = 1 : total_combinations ; 
 
-result_abundance_ecoli_trans = result_abundance_ecoli' ; 
+result_abundance_ecoli_trans = abundance_array' ; 
 result_abundance = result_abundance_ecoli_trans(:) ; 
 
 Table_succ = table(ind', del_gene_ecoli_ind, del_gene_yeast_ind, result_ratio_gr_ecoli, result_ratio_gr_yeast, ...
-    result_grmax, result_ex_flux, result_abundance_ecoli,'VariableNames',...
+    result_grmax, result_ex_flux, result_abundance,'VariableNames',...
     {'Sr.no', 'Ecoli del gene','Yeast del gene','Ecoli Ratio (gr_KO/gr_WT)', 'Yeast Ratio (gr_KO/gr_WT)', 'GRmax', 'Ex Flux', 'Ecoli abundace'}); 
-writetable(Table_succ, 'test_KO_glucose.xls','Sheet',3) ;
+writetable(Table_succ, 'test_KO_maltose.xls','Sheet',3) ;
 
 table_ab = table(['Ecoli' ; 'Yeast'],wild_type_abundances,'VariableNames',{'Org', 'WT-WT Abundances'}) ;
-writetable(table_ab, 'test_KO_glucose.xls','Sheet',4) ;
+writetable(table_ab, 'test_KO_maltose.xls','Sheet',4) ;
 toc
